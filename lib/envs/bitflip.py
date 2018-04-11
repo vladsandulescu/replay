@@ -19,12 +19,11 @@ class BitFlipEnv(gym.Env):
         self.done = np.array_equal(self.state, self.goal)
         reward = -1 if not self.done else 0
 
-        return self.state, reward, self.done, {}
+        return self.state.copy(), reward, self.done, {}
 
     def _reset(self):
         self.state = np.random.choice([0, 1], size=(self.n))
-
-        return self.state
+        return self.state.copy()
 
     def _render(self, mode='human', close=False):
         pass

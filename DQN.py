@@ -1,11 +1,16 @@
 import random
+import os
 import sys
 
 import tensorflow as tf
 import numpy as np
+import pandas as pd
 from collections import namedtuple
 from lib.envs.bitflip import BitFlipEnv
-import os
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+np.random.seed(42)
 
 
 class Q_Approximator:
@@ -18,7 +23,6 @@ class Q_Approximator:
             if not os.path.exists(summaries_dir):
                 os.makedirs(summaries_dir)
             self.summary_writer = tf.summary.FileWriter(summaries_dir)
-
 
     def create_layer(self, input, numUnits):
         numInput = input.get_shape()[1].value
@@ -59,7 +63,6 @@ class Q_Approximator:
         return np.expand_dims(state, axis=0)
 
     def predict(self, sess: tf.Session, processed_state):
-        # processed_state = tf.expand_dims(tf.convert_to_tensor(state), axis=0)
         return sess.run(self.predictions, feed_dict={self.x: processed_state})
 
     def gradient_step(self, sess: tf.Session, states_batch, y_batch, actions_batch):
@@ -95,45 +98,76 @@ class DQN:
 
         for episode in range(self.M):
             state = env.reset()
-            phi = q_approx.process_state(state)
+            phi = self.q_approx.process_state(state)
             done = False
             t = 1
             print("\n")
             while not done and t < self.T:
-                # for t in range(self.T):
                 action = self.execute_policy(sess, phi)
                 next_state, reward, done, _ = env.step(action)
                 self.replay_buffer.append(Transition(state, action, reward, next_state, done))
-                if len(self.replay_buffer) >= batch_size:
+
+                # If we are building the initial replay memory and by chance get a 0 reward, then start over
+                if len(self.replay_buffer) < batch_size:
+                    if done:
+                        state = env.reset()
+                        phi = self.q_approx.process_state(state)
+                        done = False
+                else:
                     sample = random.sample(self.replay_buffer, batch_size)
                     phis_batch, action_batch, reward_batch, next_phis_batch, done_batch = \
                         map(np.array, zip(*sample))
                     y_batch = reward_batch + gamma * np.invert(done_batch).astype(np.float32) * \
-                              np.amax(q_approx.predict(sess, next_phis_batch), axis=1)
-                    loss = q_approx.gradient_step(sess, phis_batch, y_batch, action_batch)
+                              np.amax(self.q_approx.predict(sess, next_phis_batch), axis=1)
+                    loss = self.q_approx.gradient_step(sess, phis_batch, y_batch, action_batch)
                     print("\rStep {} ({}) @ Episode {}/{}, loss: {}".format(
                         t, current_timestep, episode + 1, self.M, loss), end="")
                     sys.stdout.flush()
 
-                if done:
-                    print("Done. Reached reward", reward)
+                    if done:
+                        print("\nDone. Reward =", reward)
+                        return 1
 
-                t += 1
-                state = next_state
-                phi = q_approx.process_state(state)
+                    t += 1
+                    state = next_state
+                    phi = self.q_approx.process_state(state)
+        return 0
 
 
-tf.reset_default_graph()
-np.random.seed(42)
+def plot(success_rate):
+    sns.set_style("whitegrid")
+    sns.set_context("paper")
+    plt.plot(success_rate.index, success_rate.values, '-', label='DQN')
+    plt.xticks(np.arange(1, max(success_rate.index) + 1, 1.0))
+    plt.yticks(np.arange(0, 1.2, 0.2))
+    plt.legend(loc=1, bbox_to_anchor=(0.5, 1.1), ncol=2)
+    plt.xlabel('bits')
+    plt.ylabel('success rate')
+    sns.despine()
+    plt.show()
 
-n = 15
-goal = np.random.choice([0, 1], size=(n,))
-env = BitFlipEnv(n, goal)
-q_approx = Q_Approximator(n, n)
-dqn = DQN(q_approx, M=10, T=1000)
 
-with tf.Session() as sess:
-    sess.run(tf.global_variables_initializer())
-    dqn.run(sess, env)
-    # observation = env.reset()
-    # print(q_approx.predict(sess, observation))
+def run_dqn(n_max=10):
+    Result = namedtuple("Result", field_names=['n', 'trial', 'success'])
+    results = []
+
+    for n in range(1, n_max + 1):
+        for trial in range(5):
+            tf.reset_default_graph()
+            goal = np.random.choice([0, 1], size=(n,))
+            env = BitFlipEnv(n, goal)
+            q_approx = Q_Approximator(n, n)
+            dqn = DQN(q_approx, M=20, T=1000)
+
+            with tf.Session() as sess:
+                sess.run(tf.global_variables_initializer())
+                success = dqn.run(sess, env)
+                results.append(Result(n, trial, success))
+
+    results = pd.DataFrame(results)
+    results.to_csv('experiments/results.csv')
+
+# run_dqn(10)
+results = pd.DataFrame.from_csv('experiments/results.csv')
+success_rate = results.groupby('n')['success'].mean()
+plot(success_rate)

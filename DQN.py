@@ -114,7 +114,7 @@ def run_dqn_worker(n):
 
         batch_size = 128
         q_approx = QApproximator(n, n, batch_size)
-        dqn = DQN(q_approx, n, M=200, T=n, B=batch_size, gamma=0.98, replay_buffer_size=1e4)
+        dqn = DQN(q_approx, n, M=200, T=n, B=batch_size, gamma=0.98, replay_buffer_size=1e5)
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             success = dqn.run(sess)

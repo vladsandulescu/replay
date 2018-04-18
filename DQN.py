@@ -90,7 +90,7 @@ def run_dqn(n_max=10):
 
             batch_size = 128
             q_approx = QApproximator(n, n, batch_size)
-            dqn = DQN(q_approx, n, M=200, T=n, B=batch_size, gamma=0.98, replay_buffer_size=1e3)
+            dqn = DQN(q_approx, n, M=200, T=n, B=batch_size, gamma=0.98, replay_buffer_size=1e6)
             with tf.Session() as sess:
                 sess.run(tf.global_variables_initializer())
                 success = dqn.run(sess)
@@ -113,7 +113,7 @@ def plot(success_rate):
     plt.show()
 
 
-run_dqn(25)
+run_dqn(50)
 results = pd.DataFrame.from_csv('experiments/results_dqn.csv')
 success_rate = results.groupby('n')['success'].mean()
 plot(success_rate)

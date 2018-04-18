@@ -1,3 +1,4 @@
+import multiprocessing
 import random
 import sys
 
@@ -5,6 +6,9 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 from collections import namedtuple
+
+from joblib import Parallel, delayed
+
 from lib.envs.bitflip import BitFlipEnv
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -90,7 +94,7 @@ def run_dqn(n_max=10):
 
             batch_size = 128
             q_approx = QApproximator(n, n, batch_size)
-            dqn = DQN(q_approx, n, M=200, T=n, B=batch_size, gamma=0.98, replay_buffer_size=1e6)
+            dqn = DQN(q_approx, n, M=200, T=n, B=batch_size, gamma=0.98, replay_buffer_size=1e4)
             with tf.Session() as sess:
                 sess.run(tf.global_variables_initializer())
                 success = dqn.run(sess)
@@ -99,6 +103,30 @@ def run_dqn(n_max=10):
     results = pd.DataFrame(results)
     results.to_csv('experiments/results_dqn.csv')
 
+
+Result = namedtuple("Result", field_names=['n', 'trial', 'success'])
+def run_dqn_worker(n):
+    results = []
+
+    for trial in range(4):
+        print("n =", n, "trial =", trial)
+        tf.reset_default_graph()
+
+        batch_size = 128
+        q_approx = QApproximator(n, n, batch_size)
+        dqn = DQN(q_approx, n, M=200, T=n, B=batch_size, gamma=0.98, replay_buffer_size=1e4)
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            success = dqn.run(sess)
+            results.append(Result(n, trial, success))
+    return results
+
+def run_dqn_parallel(n_max=10):
+    n_values = range(1, n_max + 1)
+    new_results = Parallel(n_jobs=(int)(multiprocessing.cpu_count() / 2))(delayed(run_dqn_worker)(n) for n in list(n_values))
+    new_results_flat = [item for result in new_results for item in result]
+    results = pd.DataFrame(new_results_flat)
+    results.to_csv('experiments/results_dqn_parallel.csv')
 
 def plot(success_rate):
     sns.set_style("whitegrid")
@@ -113,7 +141,7 @@ def plot(success_rate):
     plt.show()
 
 
-run_dqn(50)
-results = pd.DataFrame.from_csv('experiments/results_dqn.csv')
+run_dqn_parallel(50)
+results = pd.DataFrame.from_csv('experiments/results_dqn_parallel.csv')
 success_rate = results.groupby('n')['success'].mean()
 plot(success_rate)

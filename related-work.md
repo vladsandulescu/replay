@@ -1,6 +1,6 @@
 # Related Work
 * RL
-  * [Universal Planning Networks](https://arxiv.org/pdf/1804.00645.pdf)
+  * [Universal Planning Networks](https://arxiv.org/pdf/1804.00645.pdf)  
   Learn representations, specify distance-based rewards to reach new target states for model-free reinforcement learning, resulting in substantially more effective learning when solving new tasks described via image-based goals.
   * [Learning by Playing – Solving Sparse Reward Tasks from Scratch](https://arxiv.org/pdf/1802.10567.pdf)  
   Extension to HER, deals also with sparse rewards.

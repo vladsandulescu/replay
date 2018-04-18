@@ -16,8 +16,8 @@ def plot(success_rates):
     sns.despine()
     plt.show()
 
-results_dqn = pd.DataFrame.from_csv('experiments/results_dqn.csv')
-results_her = pd.DataFrame.from_csv('experiments/results_her.csv')
+results_dqn = pd.DataFrame.from_csv('experiments/results_dqn_parallel.csv')
+results_her = pd.DataFrame.from_csv('experiments/results_her_parallel.csv')
 success_rates = pd.merge(results_dqn, results_her, on=["n", "trial"], suffixes=("_dqn", "_her")). \
                     groupby("n")["success_dqn", "success_her"].mean()
 plot(success_rates)

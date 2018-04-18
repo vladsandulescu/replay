@@ -95,7 +95,7 @@ def run_her(n_max=10):
 
             batch_size = 128
             q_approx = QApproximator(n, n, batch_size=batch_size)
-            her = HER(q_approx, n, M=200, T=n, N=40, B=batch_size, gamma=0.98, replay_buffer_size=1e3)
+            her = HER(q_approx, n, M=200, T=n, N=40, B=batch_size, gamma=0.98, replay_buffer_size=1e6)
             with tf.Session() as sess:
                 sess.run(tf.global_variables_initializer())
                 success = her.run(sess)
@@ -118,7 +118,7 @@ def plot(success_rate):
     plt.show()
 
 
-run_her(25)
+run_her(50)
 results = pd.DataFrame.from_csv('experiments/results_her.csv')
 success_rate = results.groupby('n')['success'].mean()
 plot(success_rate)

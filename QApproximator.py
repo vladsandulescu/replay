@@ -42,7 +42,7 @@ class QApproximator:
 
             with tf.variable_scope("Q_losses"):
                 self.loss = tf.reduce_mean(tf.squared_difference(self.y, self.actions_predictions))
-                self.optimizer = tf.train.RMSPropOptimizer(learning_rate=0.00025, momentum=0.95, epsilon=0.01)
+                self.optimizer = tf.train.RMSPropOptimizer(learning_rate=0.001, momentum=0.95, epsilon=0.01)
                 self.train_op = self.optimizer.minimize(self.loss, global_step=global_step)
 
             self.summaries = tf.summary.merge([
@@ -66,7 +66,7 @@ class QApproximator:
 
         return loss
 
-    def execute_policy(self, sess, state, epsilon=0.1):
+    def execute_policy(self, sess, state, epsilon=0.2):
         q_function = self.predict(sess, state)
         explore = np.random.choice([0, 1], p=[1 - epsilon, epsilon])
         if explore:

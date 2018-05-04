@@ -6,9 +6,13 @@ np.random.seed(42)
 
 
 class QApproximator:
-    def __init__(self, states, num_actions, batch_size, scope="estimator", experiments_dir='experiments'):
+    def __init__(self, states, num_actions, batch_size, scope="approximator", experiments_dir='experiments'):
+        self.scope = scope
         self.summary_writer = None
-        self.create_tf_model(states, num_actions, batch_size)
+        self.global_step = tf.Variable(0, name='global_step', trainable=False)
+        with tf.variable_scope(scope):
+            self.create_tf_model(states, num_actions, batch_size)
+
         if experiments_dir:
             summaries_dir = os.path.join(experiments_dir, "summaries_{}".format(scope))
             if not os.path.exists(summaries_dir):
@@ -24,8 +28,6 @@ class QApproximator:
         return output
 
     def create_tf_model(self, states, num_actions, batch_size):
-        global_step = tf.Variable(0, name='global_step', trainable=False)
-
         with tf.variable_scope("DQN"):
             with tf.variable_scope("Q_input"):
                 self.x = tf.placeholder(dtype=tf.float32, shape=[None, states], name="x")
@@ -43,7 +45,7 @@ class QApproximator:
             with tf.variable_scope("Q_losses"):
                 self.loss = tf.reduce_mean(tf.squared_difference(self.y, self.actions_predictions))
                 self.optimizer = tf.train.RMSPropOptimizer(learning_rate=0.001, momentum=0.95, epsilon=0.01)
-                self.train_op = self.optimizer.minimize(self.loss, global_step=global_step)
+                self.train_op = self.optimizer.minimize(self.loss, global_step=self.global_step)
 
             self.summaries = tf.summary.merge([
                 tf.summary.scalar("loss", self.loss),
@@ -53,7 +55,11 @@ class QApproximator:
     def process_state(self, state):
         return np.expand_dims(state, axis=0)
 
-    def predict(self, sess: tf.Session, processed_state):
+    def predict(self, sess: tf.Session, state):
+        if len(state.shape) == 1:
+            processed_state = self.process_state(state)
+        else:
+            processed_state = state
         return sess.run(self.predictions, feed_dict={self.x: processed_state})
 
     def gradient_step(self, sess: tf.Session, states_batch, y_batch, actions_batch):
@@ -74,3 +80,20 @@ class QApproximator:
         else:
             action = np.argmax(q_function)
         return action
+
+
+# From https://arxiv.org/pdf/1509.02971.pdf
+class QTargetNetworkCopier():
+    def __init__(self, estimator1, estimator2, tau=0.05):
+        e1_params = [t for t in tf.trainable_variables() if t.name.startswith(estimator1.scope)]
+        e1_params = sorted(e1_params, key=lambda v: v.name)
+        e2_params = [t for t in tf.trainable_variables() if t.name.startswith(estimator2.scope)]
+        e2_params = sorted(e2_params, key=lambda v: v.name)
+
+        self.update_ops = []
+        for e1_v, e2_v in zip(e1_params, e2_params):
+            op = e2_v.assign(tau * e1_v + (1 - tau) * e2_v)
+            self.update_ops.append(op)
+
+    def run(self, sess):
+        sess.run(self.update_ops)

@@ -91,22 +91,21 @@ class DQN:
 
 def run_dqn(n_max=10):
     results = []
-    n = n_max
-    # for n in range(1, n_max + 1):
-    print("\n n =", n)
-    tf.reset_default_graph()
+    for n in range(1, n_max + 1):
+        print("\n n =", n)
+        tf.reset_default_graph()
 
-    env = BitFlipEnv(n)
-    batch_size = 128
-    q_approx = QApproximator(n, n, batch_size, scope="approximator")
-    q_target_network = QApproximator(n, n, batch_size, scope="target_network")
-    dqn = DQN(env, q_approx, q_target_network, epochs=200, cycles=50, episodes=16, episode_timesteps=n,
-              optimization_steps=40, minibatch_size=batch_size, gamma=0.98, q_target_network_decay=0.05,
-              experience_replay_size=1e6)
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        success = dqn.run(sess)
-        results.append(Result(n, success))
+        env = BitFlipEnv(n)
+        batch_size = 128
+        q_approx = QApproximator(n, n, batch_size, scope="approximator")
+        q_target_network = QApproximator(n, n, batch_size, scope="target_network")
+        dqn = DQN(env, q_approx, q_target_network, epochs=200, cycles=50, episodes=16, episode_timesteps=n,
+                  optimization_steps=40, minibatch_size=batch_size, gamma=0.98, q_target_network_decay=0.05,
+                  experience_replay_size=1e6)
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            success = dqn.run(sess)
+            results.append(Result(n, success))
 
     results = pd.DataFrame(results)
     results.to_csv('experiments/results_dqn.csv')
@@ -156,8 +155,7 @@ def plot(success_rate):
     plt.show()
 
 
-# run_dqn_parallel(20)
-run_dqn(14)
+run_dqn_parallel(50)
 results = pd.DataFrame.from_csv('experiments/results_dqn_parallel.csv')
 success_rate = results.groupby('n')['success'].mean()
 plot(success_rate)

@@ -21,7 +21,8 @@ Transition = namedtuple("Transition", ["state", "action", "reward", "next_state"
 # From https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf
 class DQN:
     def __init__(self, env, q_approx, q_target_network, epochs, cycles, episodes, episode_timesteps,
-                 optimization_steps, minibatch_size, gamma, q_target_network_decay, experience_replay_size):
+                 optimization_steps, minibatch_size, gamma, q_target_network_decay, experience_replay_size,
+                 experience_replay_file_suffix=""):
         self.env = env
         self.q_approx = q_approx
         self.q_target_network = q_target_network
@@ -34,6 +35,7 @@ class DQN:
         self.gamma = gamma
         self.q_target_network_decay = q_target_network_decay
         self.experience_replay_size = (int)(experience_replay_size)
+        self.experience_replay_file = 'experiments/dqn_experience_replay_{}.pkl'.format(experience_replay_file_suffix)
         self.experience_replay = []
         self.model_copier = QTargetNetworkCopier(q_approx, q_target_network, q_target_network_decay)
 
@@ -73,9 +75,8 @@ class DQN:
         return 0
 
     def init_experience_replay(self, sess, load_from_disk=True):
-        experience_replay_file = 'experiments/dqn_experience_replay.pkl'
-        if load_from_disk and Path(experience_replay_file).is_file():
-            self.experience_replay = pickle.load(open(experience_replay_file, 'rb'))
+        if load_from_disk and Path(self.experience_replay_file).is_file():
+            self.experience_replay = pickle.load(open(self.experience_replay_file, 'rb'))
         else:
             state, _ = self.env.reset()
             for t in range(self.experience_replay_size):
@@ -86,7 +87,7 @@ class DQN:
                     state, _ = self.env.reset()
                 else:
                     state = next_state
-            pickle.dump(self.experience_replay, open(experience_replay_file, 'wb'))
+            pickle.dump(self.experience_replay, open(self.experience_replay_file, 'wb'))
 
 
 def run_dqn(n_max=10):
@@ -117,7 +118,7 @@ Result = namedtuple("Result", field_names=['n', 'success'])
 def run_dqn_worker(n):
     results = []
     tf.reset_default_graph()
-    print("n =", n)
+    print("\n n =", n)
 
     env = BitFlipEnv(n)
     batch_size = 128
@@ -125,7 +126,7 @@ def run_dqn_worker(n):
     q_target_network = QApproximator(n, n, batch_size, scope="target_network")
     dqn = DQN(env, q_approx, q_target_network, epochs=200, cycles=50, episodes=16, episode_timesteps=n,
               optimization_steps=40, minibatch_size=batch_size, gamma=0.98, q_target_network_decay=0.05,
-              experience_replay_size=1e6)
+              experience_replay_size=1e6, experience_replay_file_suffix=n)
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         success = dqn.run(sess)
@@ -135,7 +136,7 @@ def run_dqn_worker(n):
 
 def run_dqn_parallel(n_max=10):
     n_values = range(1, n_max + 1)
-    new_results = Parallel(n_jobs=(int)(multiprocessing.cpu_count() / 2))(
+    new_results = Parallel(n_jobs=(int)(multiprocessing.cpu_count() / 2 - 1))(
         delayed(run_dqn_worker)(n) for n in list(n_values))
     new_results_flat = [item for result in new_results for item in result]
     results = pd.DataFrame(new_results_flat)

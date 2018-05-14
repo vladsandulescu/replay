@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import config
 from pathlib import Path
 from collections import namedtuple
 from joblib import Parallel, delayed
@@ -22,7 +23,7 @@ Transition = namedtuple("Transition", ["state", "action", "reward", "next_state"
 class DQN:
     def __init__(self, env, q_approx, q_target_network, epochs, cycles, episodes, episode_timesteps,
                  optimization_steps, minibatch_size, gamma, q_target_network_decay, experience_replay_size,
-                 experience_replay_file_suffix=""):
+                 experience_replay_file_suffix):
         self.env = env
         self.q_approx = q_approx
         self.q_target_network = q_target_network
@@ -35,7 +36,8 @@ class DQN:
         self.gamma = gamma
         self.q_target_network_decay = q_target_network_decay
         self.experience_replay_size = (int)(experience_replay_size)
-        self.experience_replay_file = 'experiments/dqn_experience_replay_{}.pkl'.format(experience_replay_file_suffix)
+        self.experience_replay_file = 'experiments/dqn_experience_replay_bits_{}.pkl'.format(
+            experience_replay_file_suffix)
         self.experience_replay = []
         self.model_copier = QTargetNetworkCopier(q_approx, q_target_network, q_target_network_decay)
 
@@ -43,34 +45,31 @@ class DQN:
         self.init_experience_replay(sess)
 
         for epoch in range(self.epochs):
-            for cycle in range(self.cycles):
-                for episode in range(self.episodes):
-                    state, _ = self.env.reset()
-                    for t in range(self.episode_timesteps):
-                        action = self.q_approx.execute_policy(sess, state)
-                        next_state, reward, done, _ = self.env.step(action)
-                        self.experience_replay.pop(0)
-                        self.experience_replay.append(Transition(state, action, reward, next_state, done))
-                        if done:
-                            print("\n Done. Episode {}/{} @ cycle {}/{} @ epoch {}/{}. Reward: {}".format(
-                                episode + 1, self.episodes, cycle + 1, self.cycles, epoch + 1, self.epochs, reward))
-                            sys.stdout.flush()
-                            return 1
+            # for cycle in range(self.cycles):
+            for episode in range(self.episodes):
+                state, _ = self.env.reset()
+                for t in range(self.episode_timesteps):
+                    action = self.q_approx.execute_policy(sess, state)
+                    next_state, reward, done, _ = self.env.step(action)
+                    self.experience_replay.pop(0)
+                    self.experience_replay.append(Transition(state, action, reward, next_state, done))
+                    state = next_state
+                    if done:
+                        print("\n Done. Episode {}/{} @ Reward: {}".format(
+                            episode + 1, self.episodes, reward))
+                        sys.stdout.flush()
+                        return 1
 
-                        state = next_state
-
-                for optimization_step in range(self.optimization_steps):
+            # for optimization_step in range(self.optimization_steps):
                     sample = random.sample(self.experience_replay, self.minibatch_size)
                     states_batch, action_batch, reward_batch, next_states_batch, done_batch = \
                         map(np.array, zip(*sample))
                     y_batch = reward_batch + self.gamma * np.invert(done_batch).astype(np.float32) * \
                               np.amax(self.q_target_network.predict(sess, next_states_batch), axis=1)
                     loss = self.q_approx.gradient_step(sess, states_batch, y_batch, action_batch)
-                    print("\r Optimization step {}/{} @ cycle {}/{} @ epoch {}/{}, loss: {}".format(
-                        optimization_step + 1, self.optimization_steps, cycle + 1, self.cycles, epoch + 1, self.epochs,
-                        loss), end="")
+                    print("\r loss: {}".format(loss), end="")
 
-                self.model_copier.run(sess)
+                    # self.model_copier.run(sess)
 
         return 0
 
@@ -90,19 +89,22 @@ class DQN:
             pickle.dump(self.experience_replay, open(self.experience_replay_file, 'wb'))
 
 
-def run_dqn(n_max=10):
+def run_dqn(n_max=10, single_n=False):
     results = []
     for n in range(1, n_max + 1):
+        if single_n and n != n_max:
+            continue
         print("\n n =", n)
         tf.reset_default_graph()
 
         env = BitFlipEnv(n)
-        batch_size = 128
-        q_approx = QApproximator(n, n, batch_size, scope="approximator")
-        q_target_network = QApproximator(n, n, batch_size, scope="target_network")
-        dqn = DQN(env, q_approx, q_target_network, epochs=200, cycles=50, episodes=16, episode_timesteps=n,
-                  optimization_steps=40, minibatch_size=batch_size, gamma=0.98, q_target_network_decay=0.05,
-                  experience_replay_size=1e6)
+        q_approx = QApproximator(n, n, config.PARAMS['batch_size'], scope="approximator")
+        q_target_network = QApproximator(n, n, config.PARAMS['batch_size'], scope="target_network")
+        dqn = DQN(env, q_approx, q_target_network, epochs=config.PARAMS['n_epochs'], cycles=config.PARAMS['n_cycles'],
+                  episodes=config.PARAMS['n_episodes'], episode_timesteps=n,
+                  optimization_steps=config.PARAMS['n_optimization_steps'], minibatch_size=config.PARAMS['batch_size'],
+                  gamma=config.PARAMS['gamma'], q_target_network_decay=config.PARAMS['polyak_tau'],
+                  experience_replay_size=config.PARAMS['experience_replay_size'], experience_replay_file_suffix=n)
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             success = dqn.run(sess)
@@ -118,15 +120,16 @@ Result = namedtuple("Result", field_names=['n', 'success'])
 def run_dqn_worker(n):
     results = []
     tf.reset_default_graph()
-    print("\n n =", n)
+    print("\n git n =", n)
 
     env = BitFlipEnv(n)
-    batch_size = 128
-    q_approx = QApproximator(n, n, batch_size, scope="approximator")
-    q_target_network = QApproximator(n, n, batch_size, scope="target_network")
-    dqn = DQN(env, q_approx, q_target_network, epochs=200, cycles=50, episodes=16, episode_timesteps=n,
-              optimization_steps=40, minibatch_size=batch_size, gamma=0.98, q_target_network_decay=0.05,
-              experience_replay_size=1e6, experience_replay_file_suffix=n)
+    q_approx = QApproximator(n, n, config.PARAMS['batch_size'], scope="approximator")
+    q_target_network = QApproximator(n, n, config.PARAMS['batch_size'], scope="target_network")
+    dqn = DQN(env, q_approx, q_target_network, epochs=config.PARAMS['n_epochs'], cycles=config.PARAMS['n_cycles'],
+              episodes=config.PARAMS['n_episodes'], episode_timesteps=n,
+              optimization_steps=config.PARAMS['n_optimization_steps'], minibatch_size=config.PARAMS['batch_size'],
+              gamma=config.PARAMS['gamma'], q_target_network_decay=config.PARAMS['polyak_tau'],
+              experience_replay_size=config.PARAMS['experience_replay_size'], experience_replay_file_suffix=n)
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         success = dqn.run(sess)
@@ -157,6 +160,7 @@ def plot(success_rate):
 
 
 run_dqn_parallel(50)
-results = pd.DataFrame.from_csv('experiments/results_dqn_parallel.csv')
+# run_dqn(38, single_n=True)
+results = pd.DataFrame.from_csv('experiments/results_dqn.csv')
 success_rate = results.groupby('n')['success'].mean()
 plot(success_rate)

@@ -84,7 +84,7 @@ class QApproximator:
 
 # From https://arxiv.org/pdf/1509.02971.pdf
 class QTargetNetworkCopier():
-    def __init__(self, estimator1, estimator2, tau=0.05):
+    def __init__(self, estimator1, estimator2, polyak_tau=0.95):
         e1_params = [t for t in tf.trainable_variables() if t.name.startswith(estimator1.scope)]
         e1_params = sorted(e1_params, key=lambda v: v.name)
         e2_params = [t for t in tf.trainable_variables() if t.name.startswith(estimator2.scope)]
@@ -92,7 +92,7 @@ class QTargetNetworkCopier():
 
         self.update_ops = []
         for e1_v, e2_v in zip(e1_params, e2_params):
-            op = e2_v.assign(tau * e1_v + (1 - tau) * e2_v)
+            op = e2_v.assign(polyak_tau * e1_v + (1. - polyak_tau) * e2_v)
             self.update_ops.append(op)
 
     def run(self, sess):

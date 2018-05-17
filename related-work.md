@@ -10,3 +10,5 @@
   * [Overcoming Catastrophic Forgetting by
 Incremental Moment Matching](https://papers.nips.cc/paper/7051-overcoming-catastrophic-forgetting-by-incremental-moment-matching.pdf)  
 Details how to overcome catastrophic forgetting, when learning online with neural nets.
+  * [Progress & Compress: A scalable framework for continual learning](https://arxiv.org/abs/1805.06370)  
+  Makes use of distillation and also gives reinforcement learning tasks as examples

@@ -15,3 +15,4 @@ Details how to overcome catastrophic forgetting, when learning online with neura
   * [Progress & Compress: A scalable framework for continual learning](https://arxiv.org/abs/1805.06370)  
   Makes use of distillation and also gives reinforcement learning tasks as examples
   * [Measuring Catastrophic Forgetting in Neural Networks](https://arxiv.org/pdf/1708.02072.pdf)
+  * [Overcoming catastrophic forgetting with hard attention to the task](https://arxiv.org/abs/1801.01423)

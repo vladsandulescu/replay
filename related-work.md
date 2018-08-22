@@ -17,3 +17,4 @@ Details how to overcome catastrophic forgetting, when learning online with neura
   * [Measuring Catastrophic Forgetting in Neural Networks](https://arxiv.org/pdf/1708.02072.pdf)
   * [Overcoming catastrophic forgetting with hard attention to the task](https://arxiv.org/abs/1801.01423)
   * [Continual Lifelong Learning with Neural Networks: A Review](https://arxiv.org/pdf/1802.07569.pdf)
+  * [Continual Learning Through Synaptic Intelligence](https://arxiv.org/pdf/1703.04200.pdf)

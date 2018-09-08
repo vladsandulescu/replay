@@ -8,6 +8,7 @@
   Using multiple goals to accelerate learning.
   * [Organizing Experience: A Deeper Look at Replay Mechanisms for Sample-based Planning in Continuous State Domains](https://www.ijcai.org/proceedings/2018/0666.pdf)
   * [Selective Experience Replay for Lifelong Learning](https://www.aaai.org/ocs/index.php/AAAI/AAAI18/paper/viewFile/16054/16703)
+
 * Catastrophic Forgetting
   * [Overcoming catastrophic forgetting in neural networks](https://arxiv.org/abs/1612.00796)
   * [Overcoming Catastrophic Forgetting by Incremental Moment Matching](https://papers.nips.cc/paper/7051-overcoming-catastrophic-forgetting-by-incremental-moment-matching.pdf)  
@@ -17,4 +18,7 @@ Details how to overcome catastrophic forgetting, when learning online with neura
   * [Measuring Catastrophic Forgetting in Neural Networks](https://arxiv.org/pdf/1708.02072.pdf)
   * [Overcoming catastrophic forgetting with hard attention to the task](https://arxiv.org/abs/1801.01423)
   * [Continual Lifelong Learning with Neural Networks: A Review](https://arxiv.org/pdf/1802.07569.pdf)
+  * [Continual Learning with Deep Generative Replay](https://arxiv.org/pdf/1705.08690.pdf)
   * [Continual Learning Through Synaptic Intelligence](https://arxiv.org/pdf/1703.04200.pdf)
+  * [Variational Continual Learning](https://arxiv.org/pdf/1710.10628.pdf)
+  * [Towards Robust Evaluations of Continual Learning](https://arxiv.org/pdf/1805.09733.pdf)
